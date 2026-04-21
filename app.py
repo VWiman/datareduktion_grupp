@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import umap
 from scipy.stats import shapiro
 import statsmodels.api as sm
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 import numpy as np
 from numpy.linalg import svd
 import plotly.express as px
@@ -17,16 +18,21 @@ df = pd.read_csv('2019.csv')
 df.info()
 
 # Vi gör ett shapiro test på Score
-def hypotes_test(x:float):
+
+
+def hypotes_test(x: float):
     if x >= 0.05:
-        svar="Nollhypotesen förkastas ej."
-    else: svar = "Nollhypotesen förkastas."
+        svar = "Nollhypotesen förkastas ej."
+    else:
+        svar = "Nollhypotesen förkastas."
     return svar
+
 
 test = shapiro(df["Score"])
 svar = hypotes_test(test.pvalue)
 
-print(f"\nShapiro (Ho: Normalfördelning) - \nstatistik: {test.statistic:.3f}. p-value: {test.pvalue:.3f}\nResultat: {svar}")
+print(
+    f"\nShapiro (Ho: Normalfördelning) - \nstatistik: {test.statistic:.3f}. p-value: {test.pvalue:.3f}\nResultat: {svar}")
 
 # Visualisera datan med pairplot
 numeric_cols = ['Score', 'GDP per capita', 'Social support',
@@ -45,8 +51,8 @@ plt.tight_layout()
 plt.show()
 
 svd_cols = ['GDP per capita', 'Social support',
-                'Healthy life expectancy', 'Freedom to make life choices',
-                'Generosity', 'Perceptions of corruption']
+            'Healthy life expectancy', 'Freedom to make life choices',
+            'Generosity', 'Perceptions of corruption']
 
 # Visualisera på karta
 fig = px.choropleth(
@@ -69,42 +75,126 @@ U, S, Vt = svd(X_centered, full_matrices=False)
 
 # Visa singulärvärdena per variabel/komponent
 for i, col in enumerate(svd_cols):
-    print(f"{col}: σ = {S[i]:.4f}, förklarad varians = {(S[i]**2 / np.sum(S**2))*100:.2f}%")
+    print(
+        f"{col}: σ = {S[i]:.4f}, förklarad varians = {(S[i]**2 / np.sum(S**2))*100:.2f}%")
 
-svd_df = pd.DataFrame(Vt, columns=svd_cols, index=[f"Komponent {i+1}" for i in range(len(S))])
+svd_df = pd.DataFrame(Vt, columns=svd_cols, index=[
+                      f"Komponent {i+1}" for i in range(len(S))])
 print("\nVariabelbidrag per komponent:")
 print(svd_df.round(3))
 
-# Skapa en reducer med umap
-reducer = umap.UMAP(n_neighbors=15, min_dist=0.1, verbose=True, target_metric = "categorical", n_jobs=1, random_state=200, metric="euclidean")
-embedding = reducer.fit_transform(df[numeric_cols])
+# ================================
+# UMAP
+# ================================
 
-# Visualisera umap
-umap_df = pd.DataFrame(embedding, columns=["UMAP1", "UMAP2"])
-umap_df["Score"] = df["Score"]
-umap_df["Country"] = df["Country or region"]
+feature_cols = ['GDP per capita', 'Social support',
+                'Healthy life expectancy', 'Freedom to make life choices',
+                'Generosity', 'Perceptions of corruption']
 
-fig = px.scatter(
-    umap_df,
-    x="UMAP1",
-    y="UMAP2",
-    color="Score",
-    hover_name="Country",
-    color_continuous_scale="Viridis",
-    title="UMAP Projection Colored by Happiness"
-)
+print("\nJämförelse av skalningsmetoder inför UMAP:")
+print("- Utan skalning: känslig för variabler med stora värden (t.ex. BNP)")
+print("- Standardisering: balanserar variabler → ofta bäst struktur")
+print("- Normalisering: kan komprimera variation → ibland sämre separation\n")
 
-fig.update_traces(
-    marker=dict(
-        size=9,
-        opacity=0.85,
-        line=dict(width=1, color="black")
+# Funktion för att visualisera UMAP med Plot
+
+
+def plot_umap(umap_data, title):
+    fig = px.scatter(
+        umap_data,
+        x="UMAP1",
+        y="UMAP2",
+        color="Score",
+        hover_name="Country",
+        color_continuous_scale="Viridis",
+        title=title
     )
+    fig.update_traces(
+        marker=dict(size=9, opacity=0.85, line=dict(width=1, color="black"))
+    )
+    fig.update_layout(
+        plot_bgcolor="white",
+        paper_bgcolor="#f7f7f7"
+    )
+    fig.show()
+
+# ================================
+# UMAP UTAN SKALNING
+# ================================
+
+
+# Använd råa feature-värden (ingen skalning appliceras)
+X_raw = df[feature_cols]
+
+# Skapa UMAP-reducer
+reducer_raw = umap.UMAP(
+    n_neighbors=15,
+    min_dist=0.1,
+    metric="euclidean",
+    random_state=200
 )
 
-fig.update_layout(
-    plot_bgcolor="white",
-    paper_bgcolor="#f7f7f7"
+# Anpassa modellen och transformera datan
+embedding_raw = reducer_raw.fit_transform(X_raw)
+
+# Skapa DataFrame för visualisering
+umap_df_raw = pd.DataFrame(embedding_raw, columns=["UMAP1", "UMAP2"])
+umap_df_raw["Score"] = df["Score"]
+umap_df_raw["Country"] = df["Country or region"]
+
+# Plotta resultatet
+plot_umap(umap_df_raw, "UMAP-projektion (utan skalning)")
+
+
+# ================================
+# UMAP MED STANDARDISERING
+# ================================
+
+# Standardisera variabler (medelvärde = 0, standardavvikelse = 1)
+standard_scaler = StandardScaler()
+X_standardised = standard_scaler.fit_transform(df[feature_cols])
+
+# Anpassa UMAP på standardiserad data
+reducer_std = umap.UMAP(
+    n_neighbors=15,
+    min_dist=0.1,
+    metric="euclidean",
+    random_state=200
 )
 
-fig.show()
+embedding_std = reducer_std.fit_transform(X_standardised)
+
+# Skapa DataFrame
+umap_df_std = pd.DataFrame(embedding_std, columns=["UMAP1", "UMAP2"])
+umap_df_std["Score"] = df["Score"]
+umap_df_std["Country"] = df["Country or region"]
+
+# Visualisera resultatet
+plot_umap(umap_df_std, "UMAP-projektion (standardiserad data)")
+
+
+# ================================
+# UMAP MED MIN-MAX-NORMALISERING
+# ================================
+
+# Normalisera variabler till intervallet [0, 1]
+minmax_scaler = MinMaxScaler()
+X_normalised = minmax_scaler.fit_transform(df[feature_cols])
+
+# Anpassa UMAP på normaliserad data
+reducer_norm = umap.UMAP(
+    n_neighbors=15,
+    min_dist=0.1,
+    metric="euclidean",
+    random_state=200
+)
+
+embedding_norm = reducer_norm.fit_transform(X_normalised)
+
+# Skapa DataFrame
+umap_df_norm = pd.DataFrame(embedding_norm, columns=["UMAP1", "UMAP2"])
+umap_df_norm["Score"] = df["Score"]
+umap_df_norm["Country"] = df["Country or region"]
+
+# Visualisera resultatet
+plot_umap(umap_df_norm, "UMAP-projektion (min-max-normaliserad data)")
