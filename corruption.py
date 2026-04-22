@@ -8,6 +8,9 @@ import numpy as np
 # Ladda datasetet
 df = pd.read_csv('2019.csv')
 
+df['Actual Corruption'] = 1 - df['Perceptions of corruption']
+print(df)
+
 def hypotes_test(p_val: float):
     if p_val >= 0.05:
         return "Nollhypotesen förkastas ej (Data ser normalfördelad ut)."
@@ -26,8 +29,8 @@ scatter_plot = sns.scatterplot(
     data=df, 
     x='GDP per capita', 
     y='Score', 
-    hue='Perceptions of corruption', 
-    size='Perceptions of corruption',
+    hue='Actual Corruption', 
+    size='Actual Corruption',
     palette='flare',
     sizes=(40, 400),
     alpha=0.7
@@ -39,7 +42,7 @@ plt.xlabel('GDP per capita (Economic Strength)', fontsize=12)
 plt.ylabel('Happiness Score (Index)', fontsize=12)
 
 # Flytta förklaringen (legend) så den inte täcker grafen
-plt.legend(title='Perceptions of Corruption', bbox_to_anchor=(1.05, 1), loc='upper left')
+plt.legend(title='Amount of Corruption', bbox_to_anchor=(1.05, 1), loc='upper left')
 
 plt.grid(True, linestyle='--', alpha=0.5)
 plt.tight_layout()
