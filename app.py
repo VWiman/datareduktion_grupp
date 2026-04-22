@@ -151,6 +151,8 @@ plot_umap(umap_df_raw, "UMAP-projektion (utan skalning)")
 # ================================
 
 # Standardisera variabler (medelvärde = 0, standardavvikelse = 1)
+# z = (x - medelvärdet av x) / standardavvikelse
+# -1.00 till 1.00
 standard_scaler = StandardScaler()
 X_standardised = standard_scaler.fit_transform(df[feature_cols])
 
@@ -172,12 +174,15 @@ umap_df_std["Country"] = df["Country or region"]
 # Visualisera resultatet
 plot_umap(umap_df_std, "UMAP-projektion (standardiserad data)")
 
+# Vi kan se ett att grupperna verkar vara grupperade utifrån förväntad livslängde, gdp och korruption.
+
 
 # ================================
 # UMAP MED MIN-MAX-NORMALISERING
 # ================================
 
 # Normalisera variabler till intervallet [0, 1]
+# 0.00 till 1.00
 minmax_scaler = MinMaxScaler()
 X_normalised = minmax_scaler.fit_transform(df[feature_cols])
 
@@ -198,3 +203,5 @@ umap_df_norm["Country"] = df["Country or region"]
 
 # Visualisera resultatet
 plot_umap(umap_df_norm, "UMAP-projektion (min-max-normaliserad data)")
+
+# Här ser vi att Freedom to make life choices verkar påverkar hur datan grupperas
